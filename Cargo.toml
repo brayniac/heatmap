@@ -13,7 +13,7 @@ repository = "https://github.com/brayniac/heatmap"
 
 readme = "README.md"
 
-keywords = [ "heatmap", histogram", "percentile", "statistics", "stats" ]
+keywords = [ "heatmap", "histogram", "percentile", "statistics", "stats" ]
 
 
 [dependencies]
