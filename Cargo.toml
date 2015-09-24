@@ -1,0 +1,8 @@
+[package]
+name = "heatmap"
+version = "0.1.0"
+authors = ["brayniac <brayniac@gmail.com>"]
+
+[dependencies]
+histogram = "*"
+time = "*"
