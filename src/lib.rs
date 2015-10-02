@@ -62,6 +62,34 @@ pub struct Heatmap {
     properties: HeatmapProperties,
 }
 
+#[derive(Clone)]
+pub struct HeatmapSlice {
+    pub start: u64,
+    pub stop: u64,
+    pub histogram: Histogram,
+}
+
+impl Iterator for Heatmap {
+    type Item = HeatmapSlice;
+
+    fn next(&mut self) -> Option<HeatmapSlice> {
+        let current = self.data.iterator;
+        self.data.iterator += 1;
+
+        if current == (self.config.num_slices as usize) {
+            self.data.iterator = 0;
+            None
+        } else {
+            let start = (self.data.iterator as u64 * self.config.slice_duration) + self.data.start;
+            Some(HeatmapSlice {
+                start: start,
+                stop: start + self.config.slice_duration,
+                histogram: self.data.data[current].clone(),
+            })
+        }
+    }
+}
+
 impl Heatmap {
 
     /// create a new Heatmap
@@ -193,16 +221,24 @@ impl Heatmap {
     pub fn record(&mut self, time: u64, value: u64, count: u64) -> Result<(), &'static str> {
         self.data.counters.entries_total = self.data.counters.entries_total.saturating_add(count);
 
+        match self.histogram_index(time) {
+            Ok(histogram_index) => {
+                self.data.data[histogram_index].record(value, count)
+            }
+            Err(e) => {
+                Err(e)
+            }
+        }
+    }
+
+    /// internal function to find the index of the histogram in the heatmap
+    fn histogram_index(&mut self, time: u64) -> Result<usize, &'static str> {
         if time < self.data.start {
             return Err("sample too early");
         } else if time > self.data.stop {
             return Err("sample too late");
         }
-
-        let histogram_index =
-            ((time - self.data.start) as f64 / self.config.slice_duration as f64).floor() as usize;
-
-        self.data.data[histogram_index].record(value, count)
+        Ok(((time - self.data.start) as f64 / self.config.slice_duration as f64).floor() as usize)
     }
 
     /// return the number of entries in the Histogram
@@ -226,8 +262,59 @@ impl Heatmap {
     pub fn entries(&mut self) -> u64 {
         self.data.counters.entries_total
     }
-}
 
-#[test]
-fn it_works() {
+    /// merge one Heatmap into another Heatmap
+    ///
+    /// # Example
+    /// ```
+    /// # use heatmap::{Heatmap,HeatmapConfig};
+    ///
+    /// let mut a = Heatmap::new(
+    ///     HeatmapConfig{
+    ///         max_memory: 0,
+    ///         max_value: 1000000,
+    ///         precision: 3,
+    ///			slice_duration: 1000000000,
+    ///			num_slices: 300,
+    /// }).unwrap();
+    ///
+    /// let mut b = Heatmap::new(
+    ///     HeatmapConfig{
+    ///         max_memory: 0,
+    ///         max_value: 1000000,
+    ///         precision: 3,
+    ///			slice_duration: 1000000000,
+    ///			num_slices: 300,
+    /// }).unwrap();
+    ///
+    /// assert_eq!(a.entries(), 0);
+    /// assert_eq!(b.entries(), 0);
+    ///
+    /// a.increment(1);
+    /// b.increment(2);
+    ///
+    /// assert_eq!(a.entries(), 1);
+    /// assert_eq!(b.entries(), 1);
+    ///
+    /// a.merge(&mut b);
+    ///
+    /// assert_eq!(a.entries(), 2);
+    /// assert_eq!(a.get(1).unwrap(), 1);
+    /// assert_eq!(a.get(2).unwrap(), 1);
+    pub fn merge(&mut self, other: &mut Heatmap) {
+        loop {
+            match other.next() {
+                Some(slice) => {
+                    match self.histogram_index(slice.start) {
+                        Ok(i) => {
+                            self.data.data[i].merge(&mut slice.histogram.clone());
+                        }
+                        Err(_) => {}
+                    }
+
+                }
+                None => { break }
+            }
+        }
+    }
 }
