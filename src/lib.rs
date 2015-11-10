@@ -36,6 +36,7 @@ pub struct HeatmapConfig {
     max_value: u64,
     slice_duration: u64,
     num_slices: usize,
+    start: u64,
 }
 
 impl HeatmapConfig {
@@ -46,6 +47,7 @@ impl HeatmapConfig {
             max_value: 1_000_000_000,
             slice_duration: 60_000_000_000,
             num_slices: 60,
+            start: 0,
         }
     }
 
@@ -73,6 +75,11 @@ impl HeatmapConfig {
         self.num_slices = count;
         self
     }
+
+    pub fn start(&mut self, time: u64) -> &mut Self {
+        self.start = time;
+        self
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -82,9 +89,7 @@ pub struct HeatmapCounters {
 
 impl HeatmapCounters {
     pub fn new() -> HeatmapCounters {
-        HeatmapCounters {
-            entries_total: 0,
-        }
+        HeatmapCounters { entries_total: 0 }
     }
 
     pub fn clear(&mut self) {
@@ -196,7 +201,7 @@ impl Heatmap {
             data[i] = Histogram::configured(c).unwrap();
         }
 
-        let start = time::precise_time_ns();
+        let start = config.start;
 
         Some(Heatmap {
             config: config,
@@ -233,15 +238,17 @@ impl Heatmap {
     pub fn clear(&mut self) -> Result<(), &'static str> {
         for i in 0..self.config.num_slices {
             match self.data.data[i].clear() {
-                Ok(_) => {},
-                Err(e) => { return Err(e); },
+                Ok(_) => {}
+                Err(e) => {
+                    return Err(e);
+                }
             }
         }
 
         self.data.counters.clear();
         self.data.start = time::precise_time_ns();
-        self.data.stop =
-            self.data.start + self.config.slice_duration * self.config.num_slices as u64;
+        self.data.stop = self.data.start +
+                         self.config.slice_duration * self.config.num_slices as u64;
         Ok(())
     }
 
@@ -315,7 +322,11 @@ impl Heatmap {
         } else if time > self.data.stop {
             return Err("sample too late");
         }
-        Ok(((time - self.data.start) as f64 / self.config.slice_duration as f64).floor() as usize)
+        let index: usize = ((time - self.data.start) as f64 /
+                            self.config.slice_duration as f64)
+                               .floor() as usize;
+        println!("index: time: {} is {}", time, index);
+        Ok(index)
     }
 
     /// return the number of entries in the Histogram
@@ -341,7 +352,10 @@ impl Heatmap {
     /// extern crate heatmap;
     /// extern crate time;
     ///
-    /// let mut a = heatmap::Heatmap::new().unwrap();
+    /// let mut c = heatmap::HeatmapConfig::new();
+    /// c.num_slices(61);
+    ///
+    /// let mut a = heatmap::Heatmap::configured(c).unwrap();
     ///
     /// let mut b = heatmap::Heatmap::new().unwrap();
     ///
@@ -349,7 +363,7 @@ impl Heatmap {
     /// assert_eq!(b.entries(), 0);
     ///
     /// let _ = a.increment(1, 1);
-    /// let _ = b.increment(2, 1);
+    /// let _ = b.increment(1, 1);
     ///
     /// assert_eq!(a.entries(), 1);
     /// assert_eq!(b.entries(), 1);
@@ -362,17 +376,22 @@ impl Heatmap {
     pub fn merge(&mut self, other: &mut Heatmap) {
         loop {
             match other.next() {
-                Some(slice) => {
-                    match self.histogram_index(slice.start) {
+                Some(other_slice) => {
+                    match self.histogram_index(other_slice.clone().start()) {
                         Ok(i) => {
-                            self.data.data[i].merge(&mut slice.histogram.clone());
-                            self.data.counters.entries_total += slice.histogram.clone().entries();
+                            self.data.data[i].merge(&mut other_slice.clone().histogram.clone());
+                            self.data.counters.entries_total += other_slice.clone()
+                                                                           .histogram
+                                                                           .clone()
+                                                                           .entries();
                         }
-                        Err(_) => {}
+                        Err(e) => {}
                     }
 
                 }
-                None => { break }
+                None => {
+                    break;
+                }
             }
         }
     }
