@@ -222,14 +222,7 @@ impl Heatmap {
     /// ```
     /// # use heatmap::{Heatmap,HeatmapConfig};
     ///
-    /// let mut h = Heatmap::new(
-    ///     HeatmapConfig{
-    ///         max_value: 1000000,
-    ///         precision: 3,
-    ///         max_memory: 0,
-    ///			slice_duration: 1000000000,
-    ///			num_slices: 300,
-    /// }).unwrap();
+    /// let mut h = Heatmap::new().unwrap();
     ///
     /// h.increment(1, 1);
     /// assert_eq!(h.entries(), 1);
