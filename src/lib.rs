@@ -40,6 +40,15 @@ pub struct HeatmapConfig {
 }
 
 impl HeatmapConfig {
+    /// create a new HeatmapConfig with the defaults
+    ///
+    /// # Defaults
+    /// * precision => 3
+    /// * max_memory => 0 (unlimited)
+    /// * max_value => 1_000_000_000 (1 second in nanoseconds)
+    /// * slice_duration => 60_000_000_000 (1 minute in nanoseconds)
+    /// * num_slices => 60 (1 hour of heatmap)
+    /// * start => 0 (start from time 0)
     pub fn new() -> HeatmapConfig {
         HeatmapConfig {
             precision: 3,
