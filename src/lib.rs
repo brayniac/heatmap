@@ -231,7 +231,7 @@ impl Heatmap {
     ///			num_slices: 300,
     /// }).unwrap();
     ///
-    /// h.increment(1);
+    /// h.increment(1, 1);
     /// assert_eq!(h.entries(), 1);
     /// h.clear();
     /// assert_eq!(h.entries(), 0);
