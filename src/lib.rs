@@ -155,9 +155,10 @@ impl Iterator for Heatmap {
 
     fn next(&mut self) -> Option<HeatmapSlice> {
         let current = self.data.iterator;
+        
         self.data.iterator += 1;
 
-        if current == (self.config.num_slices as usize) {
+        if self.data.iterator == (self.config.num_slices as usize) {
             self.data.iterator = 0;
             None
         } else {
@@ -168,6 +169,8 @@ impl Iterator for Heatmap {
                 histogram: self.data.data[current].clone(),
             })
         }
+
+        
     }
 }
 
@@ -359,7 +362,7 @@ impl Heatmap {
     /// extern crate time;
     ///
     /// let mut c = heatmap::HeatmapConfig::new();
-    /// c.num_slices(61);
+    /// c.num_slices(60);
     ///
     /// let mut a = heatmap::Heatmap::configured(c).unwrap();
     ///

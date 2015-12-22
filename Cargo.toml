@@ -14,5 +14,7 @@ description = "heatmap storage, set of histograms"
 keywords = [ "heatmap", "histogram", "percentile", "statistics", "stats" ]
 
 [dependencies]
-histogram = "*"
 time = "*"
+
+[dependencies.histogram]
+path = "../histogram"
