@@ -1,21 +1,18 @@
 [package]
 name = "heatmap"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Brian Martin <brayniac@gmail.com>"]
-
 license = "MIT"
-
-description = "heatmap storage, set of histograms"
+readme = "README.md"
 
 homepage = "https://github.com/brayniac/heatmap"
 documentation = "http://brayniac.github.io/heatmap"
 repository = "https://github.com/brayniac/heatmap"
 
-readme = "README.md"
+description = "heatmap storage, set of histograms"
 
 keywords = [ "heatmap", "histogram", "percentile", "statistics", "stats" ]
 
-
 [dependencies]
-histogram = "*"
 time = "*"
+histogram = "0.3.4"

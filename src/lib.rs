@@ -28,6 +28,10 @@ extern crate time;
 
 use histogram::*;
 use time::*;
+use std::fs::File;
+use std::io::prelude::Write;
+use std::io::BufReader;
+use std::io::BufRead;
 
 #[derive(Clone, Copy)]
 pub struct HeatmapConfig {
@@ -151,9 +155,10 @@ impl Iterator for Heatmap {
 
     fn next(&mut self) -> Option<HeatmapSlice> {
         let current = self.data.iterator;
+        
         self.data.iterator += 1;
 
-        if current == (self.config.num_slices as usize) {
+        if self.data.iterator == (self.config.num_slices as usize) {
             self.data.iterator = 0;
             None
         } else {
@@ -164,6 +169,8 @@ impl Iterator for Heatmap {
                 histogram: self.data.data[current].clone(),
             })
         }
+
+        
     }
 }
 
@@ -327,7 +334,7 @@ impl Heatmap {
         let index: usize = ((time - self.data.start) as f64 /
                             self.config.slice_duration as f64)
                                .floor() as usize;
-        println!("index: time: {} is {}", time, index);
+        //println!("index: time: {} is {}", time, index);
         Ok(index)
     }
 
@@ -355,7 +362,7 @@ impl Heatmap {
     /// extern crate time;
     ///
     /// let mut c = heatmap::HeatmapConfig::new();
-    /// c.num_slices(61);
+    /// c.num_slices(60);
     ///
     /// let mut a = heatmap::Heatmap::configured(c).unwrap();
     ///
@@ -387,7 +394,7 @@ impl Heatmap {
                                                                            .clone()
                                                                            .entries();
                         }
-                        Err(e) => {}
+                        Err(_) => {}
                     }
 
                 }
@@ -396,5 +403,99 @@ impl Heatmap {
                 }
             }
         }
+    }
+
+    pub fn save(&mut self, file: String) {
+        let mut file_handle = File::create(file.clone()).unwrap();
+
+        let config = format!("{} {} {} {} {} {}\n",
+                            self.config.precision,
+                            self.config.max_memory,
+                            self.config.max_value,
+                            self.config.slice_duration,
+                            self.config.num_slices,
+                            self.config.start).into_bytes();
+        let _ = file_handle.write_all(&config);
+
+        loop {
+            match self.next() {
+                Some(slice) => {
+                    let mut histogram = slice.histogram.clone();
+                    loop {
+                        match histogram.next() {
+                            Some(bucket) => {
+                                if bucket.count() > 0 {
+                                    let line = format!("{} {} {}\n",
+                                                    slice.start,
+                                                    bucket.value(),
+                                                    bucket.count()).into_bytes();
+                                    let _ = file_handle.write_all(&line);
+                                }
+                            }
+                            None => { 
+                                break;
+                            }
+                        }
+                    }
+                    
+                }
+                None => { 
+                    break;
+                }
+            }
+        }
+        
+    }
+
+    pub fn load(file: String) -> Heatmap {
+        let file_handle = File::open(file.clone()).unwrap();
+
+        let reader = BufReader::new(&file_handle);
+
+        let mut lines = reader.lines();
+
+        let config = lines.next().unwrap().unwrap();
+        let config_tokens: Vec<&str> = config.split_whitespace().collect();
+
+        let precision: u32 = config_tokens[0].parse().unwrap();
+        let max_memory: u32 = config_tokens[1].parse().unwrap();
+        let max_value: u64 = config_tokens[2].parse().unwrap();
+        let slice_duration: u64 = config_tokens[3].parse().unwrap();
+        let num_slices: usize = config_tokens[4].parse().unwrap();
+        let start: u64 = config_tokens[5].parse().unwrap();
+
+        let mut config = HeatmapConfig::new();
+        config.precision(precision);
+        config.max_memory(max_memory);
+        config.max_value(max_value);
+        config.slice_duration(slice_duration);
+        config.num_slices(num_slices);
+        config.start(start);
+        let mut heatmap = Heatmap::configured(config).unwrap();
+
+        loop {
+            match lines.next() {
+                Some(line) => {
+                    match line {
+                        Ok(s) => {
+                            let tokens: Vec<&str> = s.split_whitespace().collect();
+                            if tokens.len() != 3 {
+                                panic!("malformed heatmap file");
+                            }
+                            let start: u64 = tokens[0].parse().unwrap();
+                            let value: u64 = tokens[1].parse().unwrap();
+                            let count: u64 = tokens[2].parse().unwrap();
+                            let _ = heatmap.record(start, value, count);
+                        }
+                        Err(_) => { }
+                    }
+                }
+                None => { 
+                    break;
+                }
+            }
+        }
+       
+        heatmap
     }
 }
