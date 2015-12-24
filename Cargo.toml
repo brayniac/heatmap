@@ -15,6 +15,4 @@ keywords = [ "heatmap", "histogram", "percentile", "statistics", "stats" ]
 
 [dependencies]
 time = "*"
-
-[dependencies.histogram]
-path = "../histogram"
+histogram = "0.3.4"
