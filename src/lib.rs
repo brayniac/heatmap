@@ -498,4 +498,12 @@ impl Heatmap {
        
         heatmap
     }
+
+    pub fn histogram_buckets(&self) -> u64 {
+        self.data.data[0].clone().buckets_total()
+    }
+
+    pub fn num_slices(&self) -> u64 {
+        self.config.num_slices as u64
+    }
 }
