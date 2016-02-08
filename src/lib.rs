@@ -202,11 +202,7 @@ impl Heatmap {
     /// let mut h = Heatmap::configured(c).unwrap();
     pub fn configured(config: HeatmapConfig) -> Option<Heatmap> {
 
-        let mut data = Vec::with_capacity(config.num_slices);
-
-        unsafe {
-            data.set_len(config.num_slices);
-        }
+        let mut data = Vec::new();
 
         for i in 0..config.num_slices {
             let mut c = HistogramConfig::new();
@@ -214,7 +210,7 @@ impl Heatmap {
             c.precision(config.precision);
             c.max_memory(config.max_memory / config.num_slices as u32);
 
-            data[i] = Histogram::configured(c).unwrap();
+            data.push(Histogram::configured(c).unwrap());
         }
 
         let start = config.start;
