@@ -27,7 +27,6 @@ extern crate histogram;
 extern crate time;
 
 use histogram::*;
-use time::*;
 use std::fs::File;
 use std::io::prelude::Write;
 use std::io::BufReader;
@@ -43,6 +42,19 @@ pub struct HeatmapConfig {
     start: u64,
 }
 
+impl Default for HeatmapConfig {
+    fn default() -> HeatmapConfig {
+        HeatmapConfig {
+            precision: 3,
+            max_memory: 0,
+            max_value: 1_000_000_000,
+            slice_duration: 60_000_000_000,
+            num_slices: 60,
+            start: 0,
+        }
+    }
+}
+
 impl HeatmapConfig {
     /// create a new HeatmapConfig with the defaults
     ///
@@ -54,14 +66,7 @@ impl HeatmapConfig {
     /// * num_slices => 60 (1 hour of heatmap)
     /// * start => 0 (start from time 0)
     pub fn new() -> HeatmapConfig {
-        HeatmapConfig {
-            precision: 3,
-            max_memory: 0,
-            max_value: 1_000_000_000,
-            slice_duration: 60_000_000_000,
-            num_slices: 60,
-            start: 0,
-        }
+        Default::default()
     }
 
     pub fn precision(&mut self, precision: u32) -> &mut Self {
@@ -100,9 +105,15 @@ pub struct HeatmapCounters {
     entries_total: u64,
 }
 
+impl Default for HeatmapCounters {
+    fn default() -> HeatmapCounters {
+        HeatmapCounters { entries_total: 0 }
+    }
+}
+
 impl HeatmapCounters {
     pub fn new() -> HeatmapCounters {
-        HeatmapCounters { entries_total: 0 }
+        Default::default()
     }
 
     pub fn clear(&mut self) {
@@ -155,7 +166,7 @@ impl Iterator for Heatmap {
 
     fn next(&mut self) -> Option<HeatmapSlice> {
         let current = self.data.iterator;
-        
+
         self.data.iterator += 1;
 
         if self.data.iterator == (self.config.num_slices as usize) {
@@ -170,12 +181,11 @@ impl Iterator for Heatmap {
             })
         }
 
-        
+
     }
 }
 
 impl Heatmap {
-
     /// create a new Heatmap with defaults
     ///
     /// # Example
@@ -204,7 +214,7 @@ impl Heatmap {
 
         let mut data = Vec::new();
 
-        for i in 0..config.num_slices {
+        for _ in 0..config.num_slices {
             let mut c = HistogramConfig::new();
             c.max_value(config.max_value);
             c.precision(config.precision);
@@ -293,12 +303,8 @@ impl Heatmap {
         self.data.counters.entries_total = self.data.counters.entries_total.saturating_add(count);
 
         match self.histogram_index(time) {
-            Ok(histogram_index) => {
-                self.data.data[histogram_index].record(value, count)
-            }
-            Err(e) => {
-                Err(e)
-            }
+            Ok(histogram_index) => self.data.data[histogram_index].record(value, count),
+            Err(e) => Err(e),
         }
     }
 
@@ -306,17 +312,11 @@ impl Heatmap {
         match self.histogram_index(time) {
             Ok(histogram_index) => {
                 match self.data.data[histogram_index].get(value) {
-                    Some(count) => {
-                        Ok(count)
-                    }
-                    None => {
-                        Err("histogram didn't have")
-                    }
+                    Some(count) => Ok(count),
+                    None => Err("histogram didn't have"),
                 }
             }
-            Err(e) => {
-                Err(e)
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -330,7 +330,6 @@ impl Heatmap {
         let index: usize = ((time - self.data.start) as f64 /
                             self.config.slice_duration as f64)
                                .floor() as usize;
-        //println!("index: time: {} is {}", time, index);
         Ok(index)
     }
 
@@ -379,24 +378,13 @@ impl Heatmap {
     /// assert_eq!(a.get(1, 1).unwrap(), 1);
     /// assert_eq!(a.get(2, 1).unwrap(), 1);
     pub fn merge(&mut self, other: &mut Heatmap) {
-        loop {
-            match other.next() {
-                Some(other_slice) => {
-                    match self.histogram_index(other_slice.clone().start()) {
-                        Ok(i) => {
-                            self.data.data[i].merge(&mut other_slice.clone().histogram.clone());
-                            self.data.counters.entries_total += other_slice.clone()
-                                                                           .histogram
-                                                                           .clone()
-                                                                           .entries();
-                        }
-                        Err(_) => {}
-                    }
-
-                }
-                None => {
-                    break;
-                }
+        for other_slice in other {
+            if let Ok(i) = self.histogram_index(other_slice.clone().start()) {
+                self.data.data[i].merge(&mut other_slice.clone().histogram.clone());
+                self.data.counters.entries_total += other_slice.clone()
+                                                               .histogram
+                                                               .clone()
+                                                               .entries();
             }
         }
     }
@@ -405,42 +393,31 @@ impl Heatmap {
         let mut file_handle = File::create(file.clone()).unwrap();
 
         let config = format!("{} {} {} {} {} {}\n",
-                            self.config.precision,
-                            self.config.max_memory,
-                            self.config.max_value,
-                            self.config.slice_duration,
-                            self.config.num_slices,
-                            self.config.start).into_bytes();
+                             self.config.precision,
+                             self.config.max_memory,
+                             self.config.max_value,
+                             self.config.slice_duration,
+                             self.config.num_slices,
+                             self.config.start)
+                         .into_bytes();
         let _ = file_handle.write_all(&config);
 
-        loop {
-            match self.next() {
-                Some(slice) => {
-                    let mut histogram = slice.histogram.clone();
-                    loop {
-                        match histogram.next() {
-                            Some(bucket) => {
-                                if bucket.count() > 0 {
-                                    let line = format!("{} {} {}\n",
-                                                    slice.start,
-                                                    bucket.value(),
-                                                    bucket.count()).into_bytes();
-                                    let _ = file_handle.write_all(&line);
-                                }
-                            }
-                            None => { 
-                                break;
-                            }
-                        }
+        for slice in self {
+            let mut histogram = slice.histogram.clone();
+            loop {
+                if let Some(bucket) = histogram.next() {
+                    if bucket.count() > 0 {
+                        let line = format!("{} {} {}\n",
+                                           slice.start,
+                                           bucket.value(),
+                                           bucket.count())
+                                       .into_bytes();
+                        let _ = file_handle.write_all(&line);
                     }
-                    
-                }
-                None => { 
-                    break;
                 }
             }
         }
-        
+
     }
 
     pub fn load(file: String) -> Heatmap {
@@ -469,29 +446,19 @@ impl Heatmap {
         config.start(start);
         let mut heatmap = Heatmap::configured(config).unwrap();
 
-        loop {
-            match lines.next() {
-                Some(line) => {
-                    match line {
-                        Ok(s) => {
-                            let tokens: Vec<&str> = s.split_whitespace().collect();
-                            if tokens.len() != 3 {
-                                panic!("malformed heatmap file");
-                            }
-                            let start: u64 = tokens[0].parse().unwrap();
-                            let value: u64 = tokens[1].parse().unwrap();
-                            let count: u64 = tokens[2].parse().unwrap();
-                            let _ = heatmap.record(start, value, count);
-                        }
-                        Err(_) => { }
-                    }
+        for line in lines {
+            if let Ok(s) = line {
+                let tokens: Vec<&str> = s.split_whitespace().collect();
+                if tokens.len() != 3 {
+                    panic!("malformed heatmap file");
                 }
-                None => { 
-                    break;
-                }
+                let start: u64 = tokens[0].parse().unwrap();
+                let value: u64 = tokens[1].parse().unwrap();
+                let count: u64 = tokens[2].parse().unwrap();
+                let _ = heatmap.record(start, value, count);
             }
         }
-       
+
         heatmap
     }
 
