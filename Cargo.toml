@@ -1,6 +1,6 @@
 [package]
 name = "heatmap"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Brian Martin <brayniac@gmail.com>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -15,4 +15,4 @@ keywords = [ "heatmap", "histogram", "percentile", "statistics", "stats" ]
 
 [dependencies]
 time = "0.1.34"
-histogram = "0.3.5"
+histogram = "0.3.6"
