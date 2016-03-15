@@ -404,16 +404,14 @@ impl Heatmap {
 
         for slice in self {
             let mut histogram = slice.histogram.clone();
-            loop {
-                if let Some(bucket) = histogram.next() {
-                    if bucket.count() > 0 {
-                        let line = format!("{} {} {}\n",
-                                           slice.start,
-                                           bucket.value(),
-                                           bucket.count())
-                                       .into_bytes();
-                        let _ = file_handle.write_all(&line);
-                    }
+            for bucket in histogram {
+                if bucket.count() > 0 {
+                    let line = format!("{} {} {}\n",
+                                       slice.start,
+                                       bucket.value(),
+                                       bucket.count())
+                                   .into_bytes();
+                    let _ = file_handle.write_all(&line);
                 }
             }
         }
