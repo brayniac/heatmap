@@ -26,7 +26,7 @@
 extern crate histogram;
 extern crate time;
 
-use histogram::*;
+use histogram::{Histogram, HistogramConfig};
 use std::fs::File;
 use std::io::prelude::Write;
 use std::io::BufReader;
@@ -148,11 +148,11 @@ pub struct HeatmapSlice {
 }
 
 impl HeatmapSlice {
-    pub fn start(self) -> u64 {
+    pub fn start(&self) -> u64 {
         self.start
     }
 
-    pub fn stop(self) -> u64 {
+    pub fn stop(&self) -> u64 {
         self.stop
     }
 
@@ -161,27 +161,47 @@ impl HeatmapSlice {
     }
 }
 
-impl Iterator for Heatmap {
+/// Iterator over a Heatmap's slices.
+pub struct Iter<'a> {
+    heatmap: &'a Heatmap,
+    index: usize,
+}
+
+impl<'a> Iter<'a> {
+    fn new(heatmap: &'a Heatmap) -> Iter<'a> {
+        Iter {
+            heatmap: heatmap,
+            index: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for Iter<'a> {
     type Item = HeatmapSlice;
 
     fn next(&mut self) -> Option<HeatmapSlice> {
-        let current = self.data.iterator;
-
-        self.data.iterator += 1;
-
-        if self.data.iterator == (self.config.num_slices as usize) {
-            self.data.iterator = 0;
+        if self.index == (self.heatmap.config.num_slices as usize) {
             None
         } else {
-            let start = (self.data.iterator as u64 * self.config.slice_duration) + self.data.start;
+            let start = (self.index as u64 * self.heatmap.config.slice_duration) +
+                        self.heatmap.data.start;
+            let current = self.index;
+            self.index += 1;
             Some(HeatmapSlice {
                 start: start,
-                stop: start + self.config.slice_duration,
-                histogram: self.data.data[current].clone(),
+                stop: start + self.heatmap.config.slice_duration,
+                histogram: self.heatmap.data.data[current].clone(),
             })
         }
+    }
+}
 
+impl<'a> IntoIterator for &'a Heatmap {
+    type Item = HeatmapSlice;
+    type IntoIter = Iter<'a>;
 
+    fn into_iter(self) -> Self::IntoIter {
+        Iter::new(self)
     }
 }
 
@@ -252,12 +272,7 @@ impl Heatmap {
     /// assert_eq!(h.entries(), 0);
     pub fn clear(&mut self) -> Result<(), &'static str> {
         for i in 0..self.config.num_slices {
-            match self.data.data[i].clear() {
-                Ok(_) => {}
-                Err(e) => {
-                    return Err(e);
-                }
-            }
+            self.data.data[i].clear();
         }
 
         self.data.counters.clear();
@@ -303,7 +318,7 @@ impl Heatmap {
         self.data.counters.entries_total = self.data.counters.entries_total.saturating_add(count);
 
         match self.histogram_index(time) {
-            Ok(histogram_index) => self.data.data[histogram_index].record(value, count),
+            Ok(histogram_index) => self.data.data[histogram_index].increment_by(value, count),
             Err(e) => Err(e),
         }
     }
@@ -327,9 +342,8 @@ impl Heatmap {
         } else if time > self.data.stop {
             return Err("sample too late");
         }
-        let index: usize = ((time - self.data.start) as f64 /
-                            self.config.slice_duration as f64)
-                               .floor() as usize;
+        let index: usize =
+            ((time - self.data.start) as f64 / self.config.slice_duration as f64).floor() as usize;
         Ok(index)
     }
 
@@ -358,6 +372,7 @@ impl Heatmap {
     ///
     /// let mut c = heatmap::HeatmapConfig::new();
     /// c.num_slices(60);
+    /// c.slice_duration(1);
     ///
     /// let mut a = heatmap::Heatmap::configured(c).unwrap();
     ///
@@ -366,8 +381,8 @@ impl Heatmap {
     /// assert_eq!(a.entries(), 0);
     /// assert_eq!(b.entries(), 0);
     ///
-    /// let _ = a.increment(1, 1);
-    /// let _ = b.increment(1, 1);
+    /// let _ = a.increment(0, 1);
+    /// let _ = b.increment(0, 1);
     ///
     /// assert_eq!(a.entries(), 1);
     /// assert_eq!(b.entries(), 1);
@@ -375,16 +390,22 @@ impl Heatmap {
     /// a.merge(&mut b);
     ///
     /// assert_eq!(a.entries(), 2);
-    /// assert_eq!(a.get(1, 1).unwrap(), 1);
-    /// assert_eq!(a.get(2, 1).unwrap(), 1);
+    /// assert_eq!(a.get(0, 1).unwrap(), 2);
+    /// assert_eq!(a.get(0, 2).unwrap(), 0);
+    /// assert_eq!(a.get(1, 1).unwrap(), 0);
     pub fn merge(&mut self, other: &mut Heatmap) {
-        for other_slice in other {
-            if let Ok(i) = self.histogram_index(other_slice.clone().start()) {
-                self.data.data[i].merge(&mut other_slice.clone().histogram.clone());
-                self.data.counters.entries_total += other_slice.clone()
-                                                               .histogram
-                                                               .clone()
-                                                               .entries();
+        for slice in other.into_iter() {
+            let slice = slice.clone();
+            let start = slice.start();
+            for bucket in &slice.histogram {
+                if bucket.count() > 0 {
+                    println!("start: {} bucket: {} count: {}",
+                             start,
+                             bucket.value(),
+                             bucket.count());
+                }
+
+                let _ = self.record(start, bucket.value(), bucket.count());
             }
         }
     }
@@ -399,18 +420,15 @@ impl Heatmap {
                              self.config.slice_duration,
                              self.config.num_slices,
                              self.config.start)
-                         .into_bytes();
+            .into_bytes();
         let _ = file_handle.write_all(&config);
 
-        for slice in self {
-            let mut histogram = slice.histogram.clone();
-            for bucket in histogram {
+        for slice in self.into_iter() {
+            let histogram = slice.histogram.clone();
+            for bucket in &histogram {
                 if bucket.count() > 0 {
-                    let line = format!("{} {} {}\n",
-                                       slice.start,
-                                       bucket.value(),
-                                       bucket.count())
-                                   .into_bytes();
+                    let line = format!("{} {} {}\n", slice.start, bucket.value(), bucket.count())
+                        .into_bytes();
                     let _ = file_handle.write_all(&line);
                 }
             }
