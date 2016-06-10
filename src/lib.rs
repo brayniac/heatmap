@@ -253,8 +253,7 @@ impl Heatmap {
                 .precision(config.precision)
                 .max_memory(config.max_memory / config.num_slices as u32)
                 .build()
-                .unwrap()
-                );
+                .unwrap());
         }
 
         let start = config.start;
