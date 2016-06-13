@@ -1,12 +1,12 @@
 [package]
 name = "heatmap"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Brian Martin <brayniac@gmail.com>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 
 homepage = "https://github.com/brayniac/heatmap"
-documentation = "http://brayniac.github.io/heatmap"
+documentation = "https://brayniac.github.io/heatmap"
 repository = "https://github.com/brayniac/heatmap"
 
 description = "heatmap storage, set of histograms"
@@ -14,5 +14,5 @@ description = "heatmap storage, set of histograms"
 keywords = [ "heatmap", "histogram", "percentile", "statistics", "stats" ]
 
 [dependencies]
-time = "0.1.34"
-histogram = "0.6.0"
+time = "0.1.35"
+histogram = "0.6.1"
