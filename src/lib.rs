@@ -8,9 +8,7 @@
 //! * auto-slicing by record time
 //!
 //! # Future work
-//! * make it work
-//! * make it awesome
-//! * add roll-up
+//! * more efficient serialization format
 //!
 //! # Usage
 //! Create a heatmap. Insert values over time. Profit.
@@ -32,6 +30,7 @@ use std::io::prelude::Write;
 use std::io::BufReader;
 use std::io::BufRead;
 
+/// A configuration struct for building custom `Heatmap`s.
 #[derive(Clone, Copy)]
 pub struct Config {
     precision: u32,
@@ -69,43 +68,51 @@ impl Config {
         Default::default()
     }
 
+    /// set the number of significant figures to mantain for values
     pub fn precision(&mut self, precision: u32) -> &mut Self {
         self.precision = precision;
         self
     }
 
+    /// set a bound on memory usage of `Heatmap`
     pub fn max_memory(&mut self, bytes: u32) -> &mut Self {
         self.max_memory = bytes;
         self
     }
 
+    /// set the max value to store within the `Heatmap`
     pub fn max_value(&mut self, value: u64) -> &mut Self {
         self.max_value = value;
         self
     }
 
+    /// set the duration of each `Slice` within the `Heatmap`
     pub fn slice_duration(&mut self, duration: u64) -> &mut Self {
         self.slice_duration = duration;
         self
     }
 
+    /// set the number of `Slice`s to store
     pub fn num_slices(&mut self, count: usize) -> &mut Self {
         self.num_slices = count;
         self
     }
 
+    /// the start time of the `Heatmap`, used for `Slice` indexing
     pub fn start(&mut self, time: u64) -> &mut Self {
         self.start = time;
         self
     }
 
+    /// creates the `Heatmap` from the `Config`
     pub fn build(self) -> Option<Heatmap> {
         Heatmap::configured(self)
     }
 }
 
+
 #[derive(Clone, Copy)]
-pub struct Counters {
+struct Counters {
     entries_total: u64,
 }
 
@@ -126,7 +133,7 @@ impl Counters {
 }
 
 #[derive(Clone)]
-pub struct Data {
+struct Data {
     data: Vec<Histogram>,
     counters: Counters,
     iterator: usize,
@@ -135,8 +142,9 @@ pub struct Data {
 }
 
 #[derive(Clone, Copy)]
-pub struct Properties;
+struct Properties;
 
+/// main datastructure of `Heatmap`
 #[derive(Clone)]
 pub struct Heatmap {
     config: Config,
@@ -144,28 +152,32 @@ pub struct Heatmap {
     properties: Properties,
 }
 
+/// a `Histogram` with time boundaries
 #[derive(Clone)]
 pub struct Slice {
-    pub start: u64,
-    pub stop: u64,
-    pub histogram: Histogram,
+    start: u64,
+    stop: u64,
+    histogram: Histogram,
 }
 
 impl Slice {
+    /// returns the start time of the `Slice`
     pub fn start(&self) -> u64 {
         self.start
     }
 
+    /// returns the stop time of the `Slice`
     pub fn stop(&self) -> u64 {
         self.stop
     }
 
+    /// returns the `Histogram` for the `Slice`
     pub fn histogram(self) -> Histogram {
         self.histogram
     }
 }
 
-/// Iterator over a Heatmap's slices.
+/// Iterator over a `Heatmap`'s `Slice`s
 pub struct Iter<'a> {
     heatmap: &'a Heatmap,
     index: usize,
@@ -221,8 +233,8 @@ impl Heatmap {
     /// # Example
     /// ```
     /// # use heatmap::Heatmap;
-    ///
     /// let mut h = Heatmap::new();
+    /// ```
     pub fn new() -> Heatmap {
         Default::default()
     }
@@ -232,7 +244,6 @@ impl Heatmap {
     /// # Example
     /// ```
     /// # use heatmap::Heatmap;
-    ///
     /// let mut heatmap = Heatmap::configure()
     ///     .precision(4) // set precision to 4 digits
     ///     .max_value(1_000_000_000) // store values up to 1 Million
@@ -240,10 +251,12 @@ impl Heatmap {
     ///     .num_slices(300) // 300 slices => 5 minutes of records
     ///     .build() // create the Heatmap
     ///     .unwrap();
+    /// ```
     pub fn configure() -> Config {
         Config::default()
     }
 
+    // internal function to build a configured `Heatmap`
     fn configured(config: Config) -> Option<Heatmap> {
         let mut data = Vec::new();
 
@@ -276,13 +289,13 @@ impl Heatmap {
     /// # Example
     /// ```
     /// # use heatmap::Heatmap;
-    ///
     /// let mut h = Heatmap::new();
     ///
     /// h.increment(1, 1);
     /// assert_eq!(h.entries(), 1);
     /// h.clear();
     /// assert_eq!(h.entries(), 0);
+    /// ```
     pub fn clear(&mut self) {
         for i in 0..self.config.num_slices {
             self.data.data[i].clear();
@@ -326,6 +339,7 @@ impl Heatmap {
     ///
     /// h.increment_by(time::precise_time_ns(), 10, 10);
     /// assert_eq!(h.entries(), 13);
+    /// ```
     pub fn increment_by(&mut self, time: u64, value: u64, count: u64) -> Result<(), &'static str> {
         self.data.counters.entries_total = self.data.counters.entries_total.saturating_add(count);
 
@@ -335,6 +349,7 @@ impl Heatmap {
         }
     }
 
+    /// get the count of items at a quantized time-value point
     pub fn get(&mut self, time: u64, value: u64) -> Result<u64, &'static str> {
         match self.histogram_index(time) {
             Ok(histogram_index) => {
@@ -371,6 +386,7 @@ impl Heatmap {
     /// assert_eq!(h.entries(), 0);
     /// h.increment_by(time::precise_time_ns(), 1, 1);
     /// assert_eq!(h.entries(), 1);
+    /// ```
     pub fn entries(&mut self) -> u64 {
         self.data.counters.entries_total
     }
@@ -405,6 +421,7 @@ impl Heatmap {
     /// assert_eq!(a.get(0, 1).unwrap(), 2);
     /// assert_eq!(a.get(0, 2).unwrap(), 0);
     /// assert_eq!(a.get(1, 1).unwrap(), 0);
+    /// ```
     pub fn merge(&mut self, other: &mut Heatmap) {
         for slice in other.into_iter() {
             let slice = slice.clone();
@@ -422,6 +439,7 @@ impl Heatmap {
         }
     }
 
+    /// save the `Heatmap` to disk. NOTE: format may change in future
     pub fn save(&mut self, file: String) {
         let mut file_handle = File::create(file.clone()).unwrap();
 
@@ -448,6 +466,7 @@ impl Heatmap {
 
     }
 
+    /// load the `Heatmap` from file. NOTE: format may change in future
     pub fn load(file: String) -> Heatmap {
         let file_handle = File::open(file.clone()).unwrap();
 
@@ -490,10 +509,12 @@ impl Heatmap {
         heatmap
     }
 
+    /// returns the number of buckets per `Histogram` / `Slice`
     pub fn histogram_buckets(&self) -> u64 {
         self.data.data[0].clone().buckets_total()
     }
 
+    /// returns the number of `Slice`s within `Heatmap`
     pub fn num_slices(&self) -> u64 {
         self.config.num_slices as u64
     }

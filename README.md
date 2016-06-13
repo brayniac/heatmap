@@ -21,9 +21,13 @@ Then, add this to your crate root:
 extern crate heatmap;
 ```
 
+The API documentation of this library can be found at
+[brayniac.github.io/heatmap](https://brayniac.github.io/heatmap/).
+
 ## Features
 
-* it builds!
+* a basic two-dimensional histogram
+* pre-allocated data structures
 
 ## License
 
