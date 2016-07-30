@@ -69,37 +69,37 @@ impl Config {
     }
 
     /// set the number of significant figures to mantain for values
-    pub fn precision(&mut self, precision: u32) -> &mut Self {
+    pub fn precision(mut self, precision: u32) -> Self {
         self.precision = precision;
         self
     }
 
     /// set a bound on memory usage of `Heatmap`
-    pub fn max_memory(&mut self, bytes: u32) -> &mut Self {
+    pub fn max_memory(mut self, bytes: u32) -> Self {
         self.max_memory = bytes;
         self
     }
 
     /// set the max value to store within the `Heatmap`
-    pub fn max_value(&mut self, value: u64) -> &mut Self {
+    pub fn max_value(mut self, value: u64) -> Self {
         self.max_value = value;
         self
     }
 
     /// set the duration of each `Slice` within the `Heatmap`
-    pub fn slice_duration(&mut self, duration: u64) -> &mut Self {
+    pub fn slice_duration(mut self, duration: u64) -> Self {
         self.slice_duration = duration;
         self
     }
 
     /// set the number of `Slice`s to store
-    pub fn num_slices(&mut self, count: usize) -> &mut Self {
+    pub fn num_slices(mut self, count: usize) -> Self {
         self.num_slices = count;
         self
     }
 
     /// the start time of the `Heatmap`, used for `Slice` indexing
-    pub fn start(&mut self, time: u64) -> &mut Self {
+    pub fn start(mut self, time: u64) -> Self {
         self.start = time;
         self
     }
@@ -387,7 +387,7 @@ impl Heatmap {
     /// h.increment_by(time::precise_time_ns(), 1, 1);
     /// assert_eq!(h.entries(), 1);
     /// ```
-    pub fn entries(&mut self) -> u64 {
+    pub fn entries(&self) -> u64 {
         self.data.counters.entries_total
     }
 
@@ -484,14 +484,15 @@ impl Heatmap {
         let num_slices: usize = config_tokens[4].parse().unwrap();
         let start: u64 = config_tokens[5].parse().unwrap();
 
-        let mut config = Config::new();
-        config.precision(precision);
-        config.max_memory(max_memory);
-        config.max_value(max_value);
-        config.slice_duration(slice_duration);
-        config.num_slices(num_slices);
-        config.start(start);
-        let mut heatmap = Heatmap::configured(config).unwrap();
+        let mut heatmap = Heatmap::configure()
+            .precision(precision)
+            .max_memory(max_memory)
+            .max_value(max_value)
+            .slice_duration(slice_duration)
+            .num_slices(num_slices)
+            .start(start)
+            .build()
+            .unwrap();
 
         for line in lines {
             if let Ok(s) = line {
