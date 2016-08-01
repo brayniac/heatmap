@@ -427,13 +427,6 @@ impl Heatmap {
             let slice = slice.clone();
             let start = slice.start();
             for bucket in &slice.histogram {
-                if bucket.count() > 0 {
-                    println!("start: {} bucket: {} count: {}",
-                             start,
-                             bucket.value(),
-                             bucket.count());
-                }
-
                 let _ = self.increment_by(start, bucket.value(), bucket.count());
             }
         }
@@ -518,5 +511,27 @@ impl Heatmap {
     /// returns the number of `Slice`s within `Heatmap`
     pub fn num_slices(&self) -> u64 {
         self.config.num_slices as u64
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Heatmap;
+
+    #[test]
+    fn test_new_0() {
+        let h = Heatmap::configure()
+            .num_slices(60)
+            .build()
+            .unwrap();
+
+        assert_eq!(h.num_slices(), 60);
+
+        let h = Heatmap::configure()
+            .num_slices(120)
+            .build()
+            .unwrap();
+
+        assert_eq!(h.num_slices(), 120);
     }
 }
