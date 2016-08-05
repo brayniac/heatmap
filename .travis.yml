@@ -6,7 +6,4 @@ rust:
 os:
 - linux
 - osx
-before_install:
-- openssl aes-256-cbc -K $encrypted_7399a3a37a43_key -iv $encrypted_7399a3a37a43_iv
-  -in scripts/travis.enc -out scripts/id_rsa -d
 after_success: sh scripts/travis-doc-upload.sh
