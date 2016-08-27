@@ -22,13 +22,14 @@
 #![crate_name = "heatmap"]
 
 extern crate histogram;
+extern crate time;
 
-use std::time::{Duration, Instant};
+// use std::time::{Duration, Instant};
 use histogram::Histogram;
 use std::fs::File;
 use std::io::prelude::Write;
-//use std::io::BufReader;
-//use std::io::BufRead;
+use std::io::BufReader;
+use std::io::BufRead;
 
 /// A configuration struct for building custom `Heatmap`s.
 #[derive(Clone, Copy)]
@@ -36,9 +37,9 @@ pub struct Config {
     precision: u32,
     max_memory: u32,
     max_value: u64,
-    slice_duration: Duration,
+    slice_duration: u64,
     num_slices: usize,
-    start: Instant,
+    start: u64,
 }
 
 impl Default for Config {
@@ -47,9 +48,9 @@ impl Default for Config {
             precision: 3,
             max_memory: 0,
             max_value: 1_000_000_000,
-            slice_duration: Duration::new(60, 0),
+            slice_duration: 60_000_000_000,
             num_slices: 60,
-            start: Instant::now(),
+            start: time::precise_time_ns(),
         }
     }
 }
@@ -87,7 +88,7 @@ impl Config {
     }
 
     /// set the duration of each `Slice` within the `Heatmap`
-    pub fn slice_duration(mut self, duration: Duration) -> Self {
+    pub fn slice_duration(mut self, duration: u64) -> Self {
         self.slice_duration = duration;
         self
     }
@@ -99,7 +100,7 @@ impl Config {
     }
 
     /// the start time of the `Heatmap`, used for `Slice` indexing
-    pub fn start(mut self, time: Instant) -> Self {
+    pub fn start(mut self, time: u64) -> Self {
         self.start = time;
         self
     }
@@ -137,8 +138,8 @@ struct Data {
     data: Vec<Histogram>,
     counters: Counters,
     iterator: usize,
-    start: Instant,
-    stop: Instant,
+    start: u64,
+    stop: u64,
 }
 
 #[derive(Clone, Copy)]
@@ -155,19 +156,19 @@ pub struct Heatmap {
 /// a `Histogram` with time boundaries
 #[derive(Clone)]
 pub struct Slice {
-    start: Instant,
-    stop: Instant,
+    start: u64,
+    stop: u64,
     histogram: Histogram,
 }
 
 impl Slice {
     /// returns the start time of the `Slice`
-    pub fn start(&self) -> Instant {
+    pub fn start(&self) -> u64 {
         self.start
     }
 
     /// returns the stop time of the `Slice`
-    pub fn stop(&self) -> Instant {
+    pub fn stop(&self) -> u64 {
         self.stop
     }
 
@@ -200,7 +201,7 @@ impl<'a> Iterator for Iter<'a> {
             None
         } else {
             let start = self.heatmap.data.start +
-                        (self.heatmap.config.slice_duration * self.index as u32);
+                        (self.heatmap.config.slice_duration * self.index as u64);
             let current = self.index;
             self.index += 1;
             Some(Slice {
@@ -247,7 +248,7 @@ impl Heatmap {
     /// let mut heatmap = Heatmap::configure()
     ///     .precision(4) // set precision to 4 digits
     ///     .max_value(1_000_000_000) // store values up to 1 Million
-    ///     .slice_duration(std::time::Duration::new(1, 0)) // 1 second slices
+    ///     .slice_duration(1_000_000_000) // 1 second slices
     ///     .num_slices(300) // 300 slices => 5 minutes of records
     ///     .build() // create the Heatmap
     ///     .unwrap();
@@ -278,7 +279,7 @@ impl Heatmap {
                 counters: Counters::new(),
                 iterator: 0,
                 start: start,
-                stop: start + (config.slice_duration * config.num_slices as u32),
+                stop: start + (config.slice_duration * config.num_slices as u64),
             },
             properties: Properties,
         })
@@ -288,10 +289,12 @@ impl Heatmap {
     ///
     /// # Example
     /// ```
-    /// # use heatmap::Heatmap;
-    /// let mut h = Heatmap::new();
+    /// extern crate time;
+    /// extern crate heatmap;
     ///
-    /// h.increment(std::time::Instant::now(), 1);
+    /// let mut h = heatmap::Heatmap::new();
+    ///
+    /// h.increment(time::precise_time_ns(), 1);
     /// assert_eq!(h.entries(), 1);
     /// h.clear();
     /// assert_eq!(h.entries(), 0);
@@ -302,9 +305,9 @@ impl Heatmap {
         }
 
         self.data.counters.clear();
-        self.data.start = Instant::now();
+        self.data.start = time::precise_time_ns();
         self.data.stop = self.data.start +
-                         (self.config.slice_duration * self.config.num_slices as u32);
+                         (self.config.slice_duration * self.config.num_slices as u64);
     }
 
     /// increment the count for a value at a time
@@ -312,12 +315,13 @@ impl Heatmap {
     /// # Example
     /// ```
     /// extern crate heatmap;
+    /// extern crate time;
     ///
     /// let mut h = heatmap::Heatmap::new();
     ///
-    /// h.increment(std::time::Instant::now(), 1);
+    /// h.increment(time::precise_time_ns(), 1);
     /// assert_eq!(h.entries(), 1);
-    pub fn increment(&mut self, time: Instant, value: u64) -> Result<(), &'static str> {
+    pub fn increment(&mut self, time: u64, value: u64) -> Result<(), &'static str> {
         self.increment_by(time, value, 1_u64)
     }
 
@@ -326,23 +330,20 @@ impl Heatmap {
     /// # Example
     /// ```
     /// extern crate heatmap;
+    /// extern crate time;
     ///
     /// let mut h = heatmap::Heatmap::new();
     ///
-    /// h.increment_by(std::time::Instant::now(), 1, 1);
+    /// h.increment_by(time::precise_time_ns(), 1, 1);
     /// assert_eq!(h.entries(), 1);
     ///
-    /// h.increment_by(std::time::Instant::now(), 2, 2);
+    /// h.increment_by(time::precise_time_ns(), 2, 2);
     /// assert_eq!(h.entries(), 3);
     ///
-    /// h.increment_by(std::time::Instant::now(), 10, 10);
+    /// h.increment_by(time::precise_time_ns(), 10, 10);
     /// assert_eq!(h.entries(), 13);
     /// ```
-    pub fn increment_by(&mut self,
-                        time: Instant,
-                        value: u64,
-                        count: u64)
-                        -> Result<(), &'static str> {
+    pub fn increment_by(&mut self, time: u64, value: u64, count: u64) -> Result<(), &'static str> {
         self.data.counters.entries_total = self.data.counters.entries_total.saturating_add(count);
 
         match self.histogram_index(time) {
@@ -352,7 +353,7 @@ impl Heatmap {
     }
 
     /// get the count of items at a quantized time-value point
-    pub fn get(&mut self, time: Instant, value: u64) -> Result<u64, &'static str> {
+    pub fn get(&mut self, time: u64, value: u64) -> Result<u64, &'static str> {
         match self.histogram_index(time) {
             Ok(histogram_index) => {
                 match self.data.data[histogram_index].get(value) {
@@ -367,14 +368,14 @@ impl Heatmap {
 
 
     /// internal function to find the index of the histogram in the heatmap
-    fn histogram_index(&mut self, time: Instant) -> Result<usize, &'static str> {
+    fn histogram_index(&mut self, time: u64) -> Result<usize, &'static str> {
         if time < self.data.start {
             return Err("sample too early");
         } else if time > self.data.stop {
             return Err("sample too late");
         }
-        let t = time.duration_since(self.data.start);
-        let index: usize = cycles(t, self.config.slice_duration).floor() as usize;
+        let t = time - self.data.start;
+        let index = (t / self.config.slice_duration) as usize;
         Ok(index)
     }
 
@@ -383,11 +384,12 @@ impl Heatmap {
     /// # Example
     /// ```
     /// extern crate heatmap;
+    /// extern crate time;
     ///
     /// let mut h = heatmap::Heatmap::new();
     ///
     /// assert_eq!(h.entries(), 0);
-    /// h.increment_by(std::time::Instant::now(), 1, 1);
+    /// h.increment_by(time::precise_time_ns(), 1, 1);
     /// assert_eq!(h.entries(), 1);
     /// ```
     pub fn entries(&self) -> u64 {
@@ -399,10 +401,11 @@ impl Heatmap {
     /// # Example
     /// ```
     /// extern crate heatmap;
+    /// extern crate time;
     ///
     /// let mut a = heatmap::Heatmap::configure()
     ///     .num_slices(60)
-    ///     .slice_duration(std::time::Duration::new(1, 0))
+    ///     .slice_duration(1_000_000_000)
     ///     .build()
     ///     .unwrap();
     ///
@@ -411,8 +414,8 @@ impl Heatmap {
     /// assert_eq!(a.entries(), 0);
     /// assert_eq!(b.entries(), 0);
     ///
-    /// let t0 = std::time::Instant::now();
-    /// let t1 = t0 + std::time::Duration::new(1, 0);
+    /// let t0 = time::precise_time_ns();
+    /// let t1 = t0 + 1_000_000_000;
     ///
     /// let _ = a.increment(t0, 1);
     /// let _ = b.increment(t0, 1);
@@ -463,49 +466,49 @@ impl Heatmap {
         }
     }
 
-    // /// load the `Heatmap` from file. NOTE: format may change in future
-    // pub fn load(file: String) -> Heatmap {
-    //     let file_handle = File::open(file.clone()).unwrap();
+    /// load the `Heatmap` from file. NOTE: format may change in future
+    pub fn load(file: String) -> Heatmap {
+        let file_handle = File::open(file.clone()).unwrap();
 
-    //     let reader = BufReader::new(&file_handle);
+        let reader = BufReader::new(&file_handle);
 
-    //     let mut lines = reader.lines();
+        let mut lines = reader.lines();
 
-    //     let config = lines.next().unwrap().unwrap();
-    //     let config_tokens: Vec<&str> = config.split_whitespace().collect();
+        let config = lines.next().unwrap().unwrap();
+        let config_tokens: Vec<&str> = config.split_whitespace().collect();
 
-    //     let precision: u32 = config_tokens[0].parse().unwrap();
-    //     let max_memory: u32 = config_tokens[1].parse().unwrap();
-    //     let max_value: u64 = config_tokens[2].parse().unwrap();
-    //     let slice_duration: u64 = config_tokens[3].parse().unwrap();
-    //     let num_slices: usize = config_tokens[4].parse().unwrap();
-    //     let start: u64 = config_tokens[5].parse().unwrap();
+        let precision: u32 = config_tokens[0].parse().unwrap();
+        let max_memory: u32 = config_tokens[1].parse().unwrap();
+        let max_value: u64 = config_tokens[2].parse().unwrap();
+        let slice_duration: u64 = config_tokens[3].parse().unwrap();
+        let num_slices: usize = config_tokens[4].parse().unwrap();
+        let start: u64 = config_tokens[5].parse().unwrap();
 
-    //     let mut heatmap = Heatmap::configure()
-    //         .precision(precision)
-    //         .max_memory(max_memory)
-    //         .max_value(max_value)
-    //         .slice_duration(slice_duration)
-    //         .num_slices(num_slices)
-    //         .start(start)
-    //         .build()
-    //         .unwrap();
+        let mut heatmap = Heatmap::configure()
+            .precision(precision)
+            .max_memory(max_memory)
+            .max_value(max_value)
+            .slice_duration(slice_duration)
+            .num_slices(num_slices)
+            .start(start)
+            .build()
+            .unwrap();
 
-    //     for line in lines {
-    //         if let Ok(s) = line {
-    //             let tokens: Vec<&str> = s.split_whitespace().collect();
-    //             if tokens.len() != 3 {
-    //                 panic!("malformed heatmap file");
-    //             }
-    //             let start: u64 = tokens[0].parse().unwrap();
-    //             let value: u64 = tokens[1].parse().unwrap();
-    //             let count: u64 = tokens[2].parse().unwrap();
-    //             let _ = heatmap.increment_by(start, value, count);
-    //         }
-    //     }
+        for line in lines {
+            if let Ok(s) = line {
+                let tokens: Vec<&str> = s.split_whitespace().collect();
+                if tokens.len() != 3 {
+                    panic!("malformed heatmap file");
+                }
+                let start: u64 = tokens[0].parse().unwrap();
+                let value: u64 = tokens[1].parse().unwrap();
+                let count: u64 = tokens[2].parse().unwrap();
+                let _ = heatmap.increment_by(start, value, count);
+            }
+        }
 
-    //     heatmap
-    // }
+        heatmap
+    }
 
     /// returns the number of buckets per `Histogram` / `Slice`
     pub fn histogram_buckets(&self) -> u64 {
@@ -516,12 +519,6 @@ impl Heatmap {
     pub fn num_slices(&self) -> u64 {
         self.config.num_slices as u64
     }
-}
-
-fn cycles(duration: Duration, period: Duration) -> f64 {
-    let d = duration.as_secs() as f64 + (duration.subsec_nanos() as f64 / 1_000_000_000.0);
-    let p = period.as_secs() as f64 + (period.subsec_nanos() as f64 / 1_000_000_000.0);
-    d / p
 }
 
 #[cfg(test)]
@@ -543,5 +540,24 @@ mod tests {
             .unwrap();
 
         assert_eq!(h.num_slices(), 120);
+    }
+
+    #[test]
+    fn test_increment() {
+        let mut h = Heatmap::configure()
+            .num_slices(60)
+            .slice_duration(1_000_000_000)
+            .start(0)
+            .build()
+            .unwrap();
+
+        assert_eq!(h.num_slices(), 60);
+
+        let _ = h.increment(0, 1);
+        assert_eq!(h.get(0, 1), Ok(1));
+
+        let _ = h.increment(30_000_000_000, 1);
+        assert_eq!(h.get(30_000_000_000, 1), Ok(1));
+
     }
 }
