@@ -13,6 +13,8 @@ description = "heatmap storage, set of histograms"
 
 keywords = [ "heatmap", "histogram", "percentile", "statistics", "stats" ]
 
+categories = [ "data-structures" ]
+
 [dependencies]
-histogram = "0.6.3"
-time = "0.1.35"
+histogram = "0.6.4"
+time = "0.1.36"

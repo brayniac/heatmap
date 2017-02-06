@@ -14,8 +14,14 @@
 //! Create a heatmap. Insert values over time. Profit.
 //!
 //! ```
-//!
 //! use heatmap::*;
+//!
+//! let mut h = Heatmap::configure().start(0).build().unwrap();
+//!
+//! let timestamp = 0;
+//! for value in 1..100 {
+//!     h.increment(timestamp, value).unwrap();
+//! }
 
 #![crate_type = "lib"]
 
@@ -234,7 +240,8 @@ impl Heatmap {
     /// # Example
     /// ```
     /// # use heatmap::Heatmap;
-    /// let mut h = Heatmap::new();
+    /// let h = Heatmap::new();
+    /// assert_eq!(h.entries(), 0);
     /// ```
     pub fn new() -> Heatmap {
         Default::default()
@@ -245,13 +252,14 @@ impl Heatmap {
     /// # Example
     /// ```
     /// # use heatmap::Heatmap;
-    /// let mut heatmap = Heatmap::configure()
+    /// let h = Heatmap::configure()
     ///     .precision(4) // set precision to 4 digits
     ///     .max_value(1_000_000_000) // store values up to 1 Million
     ///     .slice_duration(1_000_000_000) // 1 second slices
     ///     .num_slices(300) // 300 slices => 5 minutes of records
     ///     .build() // create the Heatmap
     ///     .unwrap();
+    /// assert_eq!(h.entries(), 0);
     /// ```
     pub fn configure() -> Config {
         Config::default()
@@ -294,7 +302,7 @@ impl Heatmap {
     ///
     /// let mut h = heatmap::Heatmap::new();
     ///
-    /// h.increment(time::precise_time_ns(), 1);
+    /// h.increment(time::precise_time_ns(), 1).unwrap();
     /// assert_eq!(h.entries(), 1);
     /// h.clear();
     /// assert_eq!(h.entries(), 0);
@@ -319,8 +327,11 @@ impl Heatmap {
     ///
     /// let mut h = heatmap::Heatmap::new();
     ///
-    /// h.increment(time::precise_time_ns(), 1);
+    /// h.increment(time::precise_time_ns(), 1).unwrap();
     /// assert_eq!(h.entries(), 1);
+    /// h.increment(time::precise_time_ns(), 1).unwrap();
+    /// assert_eq!(h.entries(), 2);
+    /// ```
     pub fn increment(&mut self, time: u64, value: u64) -> Result<(), &'static str> {
         self.increment_by(time, value, 1_u64)
     }
@@ -334,13 +345,13 @@ impl Heatmap {
     ///
     /// let mut h = heatmap::Heatmap::new();
     ///
-    /// h.increment_by(time::precise_time_ns(), 1, 1);
+    /// h.increment_by(time::precise_time_ns(), 1, 1).unwrap();
     /// assert_eq!(h.entries(), 1);
     ///
-    /// h.increment_by(time::precise_time_ns(), 2, 2);
+    /// h.increment_by(time::precise_time_ns(), 2, 2).unwrap();
     /// assert_eq!(h.entries(), 3);
     ///
-    /// h.increment_by(time::precise_time_ns(), 10, 10);
+    /// h.increment_by(time::precise_time_ns(), 10, 10).unwrap();
     /// assert_eq!(h.entries(), 13);
     /// ```
     pub fn increment_by(&mut self, time: u64, value: u64, count: u64) -> Result<(), &'static str> {
@@ -389,7 +400,7 @@ impl Heatmap {
     /// let mut h = heatmap::Heatmap::new();
     ///
     /// assert_eq!(h.entries(), 0);
-    /// h.increment_by(time::precise_time_ns(), 1, 1);
+    /// h.increment_by(time::precise_time_ns(), 1, 1).unwrap();
     /// assert_eq!(h.entries(), 1);
     /// ```
     pub fn entries(&self) -> u64 {
