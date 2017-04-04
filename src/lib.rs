@@ -382,7 +382,7 @@ impl Heatmap {
     fn histogram_index(&mut self, time: u64) -> Result<usize, &'static str> {
         if time < self.data.start {
             return Err("sample too early");
-        } else if time > self.data.stop {
+        } else if time >= self.data.stop {
             return Err("sample too late");
         }
         let t = time - self.data.start;
@@ -569,6 +569,10 @@ mod tests {
 
         let _ = h.increment(30_000_000_000, 1);
         assert_eq!(h.get(30_000_000_000, 1), Ok(1));
+
+        assert!(h.increment(59_999_999_999, 1).is_ok());
+        assert!(!h.increment(60_000_000_000, 1).is_ok());
+        assert!(!h.increment(60_000_000_001, 1).is_ok());
 
     }
 }
