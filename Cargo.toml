@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 
 homepage = "https://github.com/brayniac/heatmap"
-documentation = "https://brayniac.github.io/heatmap"
+documentation = "https://docs.rs/heatmap"
 repository = "https://github.com/brayniac/heatmap"
 
 description = "heatmap storage, set of histograms"
