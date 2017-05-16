@@ -441,7 +441,7 @@ impl Heatmap {
     /// assert_eq!(a.get(t1, 1).unwrap(), 0);
     /// ```
     pub fn merge(&mut self, other: &Heatmap) {
-        for slice in other.into_iter() {
+        for slice in other {
             let slice = slice.clone();
             let start = slice.start();
             for bucket in &slice.histogram {
@@ -464,7 +464,7 @@ impl Heatmap {
                 .into_bytes();
         let _ = file_handle.write_all(&config);
 
-        for slice in self.into_iter() {
+        for slice in self {
             let histogram = slice.histogram.clone();
             for bucket in &histogram {
                 if bucket.count() > 0 {
