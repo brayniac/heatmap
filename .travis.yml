@@ -1,8 +1,16 @@
 language: rust
+cache: cargo
 rust:
 - stable
 - beta
 - nightly
-os:
-- linux
-after_success: sh scripts/travis-doc-upload.sh
+os: linux
+env: TYPE=default RUST_BACKTRACE=1
+matrix:
+  include:
+    - os: linux
+      rust: stable
+      env: TYPE=rustfmt RUST_BACKTRACE=1
+      script:
+        - (travis_wait 20 cargo install rustfmt || true)
+        - cargo fmt -- --write-mode=diff

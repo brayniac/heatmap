@@ -30,12 +30,11 @@
 extern crate histogram;
 extern crate time;
 
-// use std::time::{Duration, Instant};
 use histogram::Histogram;
 use std::fs::File;
-use std::io::prelude::Write;
-use std::io::BufReader;
 use std::io::BufRead;
+use std::io::BufReader;
+use std::io::prelude::Write;
 
 /// A configuration struct for building custom `Heatmap`s.
 #[derive(Clone, Copy)]
@@ -211,10 +210,10 @@ impl<'a> Iterator for Iter<'a> {
             let current = self.index;
             self.index += 1;
             Some(Slice {
-                start: start,
-                stop: start + self.heatmap.config.slice_duration,
-                histogram: self.heatmap.data.data[current].clone(),
-            })
+                     start: start,
+                     stop: start + self.heatmap.config.slice_duration,
+                     histogram: self.heatmap.data.data[current].clone(),
+                 })
         }
     }
 }
@@ -271,26 +270,26 @@ impl Heatmap {
 
         for _ in 0..config.num_slices {
             data.push(Histogram::configure()
-                .max_value(config.max_value)
-                .precision(config.precision)
-                .max_memory(config.max_memory / config.num_slices as u32)
-                .build()
-                .unwrap());
+                          .max_value(config.max_value)
+                          .precision(config.precision)
+                          .max_memory(config.max_memory / config.num_slices as u32)
+                          .build()
+                          .unwrap());
         }
 
         let start = config.start;
 
         Some(Heatmap {
-            config: config,
-            data: Data {
-                data: data,
-                counters: Counters::new(),
-                iterator: 0,
-                start: start,
-                stop: start + (config.slice_duration * config.num_slices as u64),
-            },
-            properties: Properties,
-        })
+                 config: config,
+                 data: Data {
+                     data: data,
+                     counters: Counters::new(),
+                     iterator: 0,
+                     start: start,
+                     stop: start + (config.slice_duration * config.num_slices as u64),
+                 },
+                 properties: Properties,
+             })
     }
 
     /// clear the heatmap data
@@ -462,7 +461,7 @@ impl Heatmap {
                              self.config.slice_duration,
                              self.config.num_slices,
                              self.config.start)
-            .into_bytes();
+                .into_bytes();
         let _ = file_handle.write_all(&config);
 
         for slice in self.into_iter() {
@@ -538,17 +537,11 @@ mod tests {
 
     #[test]
     fn test_new_0() {
-        let h = Heatmap::configure()
-            .num_slices(60)
-            .build()
-            .unwrap();
+        let h = Heatmap::configure().num_slices(60).build().unwrap();
 
         assert_eq!(h.num_slices(), 60);
 
-        let h = Heatmap::configure()
-            .num_slices(120)
-            .build()
-            .unwrap();
+        let h = Heatmap::configure().num_slices(120).build().unwrap();
 
         assert_eq!(h.num_slices(), 120);
     }
