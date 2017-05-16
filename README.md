@@ -22,7 +22,7 @@ extern crate heatmap;
 ```
 
 The API documentation of this library can be found at
-[brayniac.github.io/heatmap](https://brayniac.github.io/heatmap/).
+[docs.rs/heatmap](https://docs.rs/heatmap/).
 
 ## Features
 
