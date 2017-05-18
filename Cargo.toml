@@ -9,12 +9,12 @@ homepage = "https://github.com/brayniac/heatmap"
 documentation = "https://docs.rs/heatmap"
 repository = "https://github.com/brayniac/heatmap"
 
-description = "heatmap storage, set of histograms"
+description = "time-series of histograms with precision guarantees"
 
 keywords = [ "heatmap", "histogram", "percentile", "statistics", "stats" ]
 
 categories = [ "data-structures" ]
 
 [dependencies]
-histogram = "0.6.5"
+histogram = "0.6.6"
 time = "0.1.37"
