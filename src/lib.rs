@@ -23,9 +23,7 @@
 //!     h.increment(timestamp, value).unwrap();
 //! }
 
-#![crate_type = "lib"]
-
-#![crate_name = "heatmap"]
+#![deny(warnings)]
 
 extern crate histogram;
 extern crate time;
