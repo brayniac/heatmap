@@ -459,7 +459,7 @@ impl Heatmap {
                              self.config.slice_duration,
                              self.config.num_slices,
                              self.config.start)
-                .into_bytes();
+            .into_bytes();
         let _ = file_handle.write_all(&config);
 
         for slice in self {
