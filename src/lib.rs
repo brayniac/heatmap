@@ -204,14 +204,14 @@ impl<'a> Iterator for Iter<'a> {
             None
         } else {
             let start = self.heatmap.data.start +
-                        (self.heatmap.config.slice_duration * self.index as u64);
+                (self.heatmap.config.slice_duration * self.index as u64);
             let current = self.index;
             self.index += 1;
             Some(Slice {
-                     start: start,
-                     stop: start + self.heatmap.config.slice_duration,
-                     histogram: self.heatmap.data.data[current].clone(),
-                 })
+                start: start,
+                stop: start + self.heatmap.config.slice_duration,
+                histogram: self.heatmap.data.data[current].clone(),
+            })
         }
     }
 }
@@ -267,27 +267,29 @@ impl Heatmap {
         let mut data = Vec::new();
 
         for _ in 0..config.num_slices {
-            data.push(Histogram::configure()
-                          .max_value(config.max_value)
-                          .precision(config.precision)
-                          .max_memory(config.max_memory / config.num_slices as u32)
-                          .build()
-                          .unwrap());
+            data.push(
+                Histogram::configure()
+                    .max_value(config.max_value)
+                    .precision(config.precision)
+                    .max_memory(config.max_memory / config.num_slices as u32)
+                    .build()
+                    .unwrap(),
+            );
         }
 
         let start = config.start;
 
         Some(Heatmap {
-                 config: config,
-                 data: Data {
-                     data: data,
-                     counters: Counters::new(),
-                     iterator: 0,
-                     start: start,
-                     stop: start + (config.slice_duration * config.num_slices as u64),
-                 },
-                 properties: Properties,
-             })
+            config: config,
+            data: Data {
+                data: data,
+                counters: Counters::new(),
+                iterator: 0,
+                start: start,
+                stop: start + (config.slice_duration * config.num_slices as u64),
+            },
+            properties: Properties,
+        })
     }
 
     /// clear the heatmap data
@@ -312,7 +314,7 @@ impl Heatmap {
         self.data.counters.clear();
         self.data.start = time::precise_time_ns();
         self.data.stop = self.data.start +
-                         (self.config.slice_duration * self.config.num_slices as u64);
+            (self.config.slice_duration * self.config.num_slices as u64);
     }
 
     /// increment the count for a value at a time
@@ -452,14 +454,15 @@ impl Heatmap {
     pub fn save(&self, file: String) {
         let mut file_handle = File::create(file.clone()).unwrap();
 
-        let config = format!("{} {} {} {:?} {} {:?}\n",
-                             self.config.precision,
-                             self.config.max_memory,
-                             self.config.max_value,
-                             self.config.slice_duration,
-                             self.config.num_slices,
-                             self.config.start)
-            .into_bytes();
+        let config = format!(
+            "{} {} {} {:?} {} {:?}\n",
+            self.config.precision,
+            self.config.max_memory,
+            self.config.max_value,
+            self.config.slice_duration,
+            self.config.num_slices,
+            self.config.start
+        ).into_bytes();
         let _ = file_handle.write_all(&config);
 
         for slice in self {
