@@ -1,6 +1,6 @@
 [package]
 name = "heatmap"
-version = "0.6.6-pre"
+version = "0.6.6"
 authors = ["Brian Martin <brayniac@gmail.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
