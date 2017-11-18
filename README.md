@@ -4,15 +4,21 @@ heatmap is a stats library for rust which provides time-sliced histogram
 storage capable of recording the distribution of values over time. It
 maintains precision guarentees throughout the range of stored values.
 
-[![travis-badge][]][travis] [![downloads-badge][] ![release-badge][]][crate] [![license-badge][]](#license)
+[![conduct-badge][]][conduct] [![travis-badge][]][travis] [![downloads-badge][] ![release-badge][]][crate] [![license-badge][]](#license)
 
+[conduct-badge]: https://img.shields.io/badge/%E2%9D%A4-code%20of%20conduct-blue.svg
 [travis-badge]: https://img.shields.io/travis/brayniac/heatmap/master.svg
 [downloads-badge]: https://img.shields.io/crates/d/heatmap.svg
 [release-badge]: https://img.shields.io/crates/v/heatmap.svg
 [license-badge]: https://img.shields.io/crates/l/heatmap.svg
+[conduct]: https://brayniac.github.io/conduct
 [travis]: https://travis-ci.org/brayniac/heatmap
 [crate]: https://crates.io/crates/heatmap
 [Cargo]: https://github.com/rust-lang/cargo
+
+## Code of Conduct
+
+**NOTE**: All conversations and contributions to this project shall adhere to the [Code of Conduct][conduct]
 
 ## Usage
 
